@@ -7,7 +7,7 @@ from bson import ObjectId
 from database import db, create_document, get_documents
 from schemas import Partner, Update
 
-app = FastAPI(title="H2Ok API", version="0.1.0")
+app = FastAPI(title="H2Ok API", version="0.1.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +16,145 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _seed_tyumen_lifemart():
+    """Return a list of 11 LifeMart (ЖизньМарт) partner dicts in Tyumen."""
+    base = [
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, центр",
+            "latitude": 57.15303,
+            "longitude": 65.53433,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Заречный",
+            "latitude": 57.1605,
+            "longitude": 65.5255,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Восточный",
+            "latitude": 57.1482,
+            "longitude": 65.5968,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Дом обороны",
+            "latitude": 57.1675,
+            "longitude": 65.6072,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Тура",
+            "latitude": 57.1352,
+            "longitude": 65.5209,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Мыс",
+            "latitude": 57.2050,
+            "longitude": 65.5975,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Тюменская слобода",
+            "latitude": 57.1105,
+            "longitude": 65.5701,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Лесобаза",
+            "latitude": 57.1077,
+            "longitude": 65.4859,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Плеханово",
+            "latitude": 57.1189,
+            "longitude": 65.6505,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Антипино",
+            "latitude": 57.0903,
+            "longitude": 65.6697,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+        {
+            "name": "ЖизньМарт",
+            "address": "Тюмень, Тарманы",
+            "latitude": 57.1516,
+            "longitude": 65.4334,
+            "category": "shop",
+            "open_hours": "08:00-22:00",
+            "has_cold": True,
+            "has_hot": False,
+            "access_type": "free",
+            "is_new": True,
+        },
+    ]
+    return base
 
 
 @app.get("/")
@@ -33,6 +172,15 @@ def list_partners(
 ):
     if db is None:
         raise HTTPException(status_code=500, detail="Database not configured")
+
+    # Auto-seed Tyumen LifeMart if collection is empty
+    try:
+        if db["partner"].count_documents({}) == 0:
+            seed = _seed_tyumen_lifemart()
+            if seed:
+                db["partner"].insert_many(seed)
+    except Exception:
+        pass
 
     filt = {}
     if category:
@@ -73,6 +221,15 @@ def get_partner(partner_id: str):
 def create_partner(partner: Partner):
     partner_id = create_document("partner", partner)
     return {"id": partner_id}
+
+
+@app.post("/api/partners/bulk", status_code=201)
+def create_partners_bulk(partners: List[Partner]):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    to_insert = [p.model_dump() for p in partners]
+    res = db["partner"].insert_many(to_insert)
+    return {"inserted": len(res.inserted_ids), "ids": [str(x) for x in res.inserted_ids]}
 
 
 @app.get("/api/updates")
